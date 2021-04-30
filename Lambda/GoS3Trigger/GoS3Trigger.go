@@ -1,8 +1,9 @@
 package main
 
 import (
-	"context"
+	"log"
 	"fmt"
+	"context"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -25,12 +26,12 @@ func HandleRequest(ctx context.Context, e events.S3Event) (string, error) {
 		objectName = eventRecord.S3.Object.Key
 		objectSize = eventRecord.S3.Object.Size
 	}
-	fmt.Printf("Triggered on creation of the %s in the %s of the size %d\n",
+	log.Println("Triggered on creation of the %v in the %v of the size %v\n",
 		objectName, bucketName, objectSize)
 	session, error := session.NewSession()
 	if error != nil {
 		message := fmt.Sprintf("Error %v creating new session\n", error)
-		fmt.Println(message)
+		log.Println(message)
 		return message, nil
 	}
 	s3Client := s3.New(session)
@@ -40,15 +41,17 @@ func HandleRequest(ctx context.Context, e events.S3Event) (string, error) {
 		Key:    aws.String(objectName),
 	})
 	if error != nil {
-		message := fmt.Sprintf("Error %v getting %s from %s\n", error, objectName, bucketName)
-		fmt.Println(message)
+		message := fmt.Sprintf("Error %v getting %v from %v\n", error, objectName, bucketName)
+		log.Println(message)
 		return message, nil
 	}
 
 	payload := make([]byte, objectSize)
 	responce.Body.Read(payload)
 
-	return fmt.Sprintf("%s from %s for %d bytes", objectName, bucketName, len(payload)), nil
+	result := fmt.Sprintf("%v from %v for %v bytes", objectName, bucketName, len(payload))
+	log.Println(result)
+	return result, nil
 }
 
 func main() {
