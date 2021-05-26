@@ -1,9 +1,10 @@
 package main
 
 import (
-	"log"
-	"fmt"
+	"bytes"
 	"context"
+	"fmt"
+	"log"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -13,9 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-type MyEvent struct {
-	Name string `json:"name"`
-}
+var TargetBucketName string
 
 func HandleRequest(ctx context.Context, e events.S3Event) (string, error) {
 	var bucketName string
@@ -49,7 +48,30 @@ func HandleRequest(ctx context.Context, e events.S3Event) (string, error) {
 	payload := make([]byte, objectSize)
 	responce.Body.Read(payload)
 
-	result := fmt.Sprintf("%v from %v for %v bytes", objectName, bucketName, len(payload))
+	_, error = s3Client.PutObject(&s3.PutObjectInput{
+		Bucket: aws.String(TargetBucketName),
+		Key:    aws.String(objectName),
+		Body:   bytes.NewReader(payload),
+	})
+
+	if error != nil {
+		message := fmt.Sprintf("Error %v storing %v in %v\n", error, objectName, TargetBucketName)
+		log.Println(message)
+		return message, nil
+	}
+
+	_, error = s3Client.DeleteObject(&s3.DeleteObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(objectName),
+	})
+
+	if error != nil {
+		message := fmt.Sprintf("Error %v deleting %v from %v\n", error, objectName, bucketName)
+		log.Println(message)
+		return message, nil
+	}
+
+	result := fmt.Sprintf("Moved %v from %v to %v (%v bytes)", objectName, bucketName, TargetBucketName, len(payload))
 	log.Println(result)
 	return result, nil
 }
